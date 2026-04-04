@@ -29,11 +29,6 @@ export default function TrendsPanel({
   windowMinutes,
   onWindowChange,
 }: TrendsPanelProps) {
-  const data = points.map((p) => ({
-    ...p,
-    timeLabel: formatTime(p.t),
-  }));
-
   return (
     <div className="panel trends-panel">
       <div className="trends-header">
@@ -53,12 +48,12 @@ export default function TrendsPanel({
           ))}
         </div>
       </div>
-      {data.length < 2 ? (
+      {points.length < 2 ? (
         <p className="panel-hint">Накопление данных для графика… Запустите симулятор телеметрии.</p>
       ) : (
         <div className="trends-chart-wrap">
           <ResponsiveContainer width="100%" height="100%" minHeight={220}>
-            <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <LineChart data={points} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.6} />
               <XAxis
                 dataKey="t"
