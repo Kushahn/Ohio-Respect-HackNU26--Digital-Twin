@@ -293,6 +293,57 @@ html[data-theme="light"] {
   margin-bottom: 12px;
 }
 
+.cabin-toolbar-split {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.cabin-toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.cabin-load-controls {
+  justify-content: flex-end;
+  flex: 1;
+  min-width: 280px;
+}
+
+.highload-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  background: rgba(245, 158, 11, 0.25);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+
+.eps-counter {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cabin-load-toggle {
+  border-color: var(--border);
+}
+
+.cabin-load-toggle.btn-active-load {
+  border-color: var(--warning);
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+html[data-theme="light"] .cabin-load-toggle.btn-active-load {
+  background: rgba(217, 119, 6, 0.12);
+}
+
 .cabin-export-btn {
   display: inline-flex;
   align-items: center;

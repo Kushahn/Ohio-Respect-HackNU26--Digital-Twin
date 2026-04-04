@@ -6,6 +6,8 @@ export interface TelemetryContextValue {
   data: TelemetryResponse | null;
   isConnected: boolean;
   isReconnecting: boolean;
+  /** Число принятых кадров телеметрии за последнюю 1 с (скользящее окно). */
+  eventsPerSecond: number;
 }
 
 const TelemetryContext = createContext<TelemetryContextValue | null>(null);
@@ -15,9 +17,9 @@ function getWsUrl() {
 }
 
 export function TelemetryProvider({ children }: { children: ReactNode }) {
-  const { data, isConnected, isReconnecting } = useWebSocket(getWsUrl());
+  const { data, isConnected, isReconnecting, eventsPerSecond } = useWebSocket(getWsUrl());
   return (
-    <TelemetryContext.Provider value={{ data, isConnected, isReconnecting }}>
+    <TelemetryContext.Provider value={{ data, isConnected, isReconnecting, eventsPerSecond }}>
       {children}
     </TelemetryContext.Provider>
   );

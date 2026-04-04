@@ -2,9 +2,12 @@ from collections import deque
 from datetime import datetime, timedelta, timezone
 from typing import Any, Deque, Dict, List, Optional
 
+import json
+
 import numpy as np
 
 from app.services.health_engine import health_engine
+from app.services.simulator_mode import simulator_mode_state
 from app.schemas import TelemetryData, HealthIndexData, TelemetryResponse
 
 MAX_HISTORY_PER_LOCO = 8000
@@ -53,7 +56,11 @@ class TelemetryProcessor:
 
         # Publish to WS if callback provided (e.g. broadcast directly)
         if publish_callback:
-            await publish_callback(resp.model_dump_json())
+            mode, target_hz = simulator_mode_state.get()
+            payload = resp.model_dump(mode="json")
+            payload["simulator_mode"] = mode
+            payload["target_ingest_hz"] = target_hz
+            await publish_callback(json.dumps(payload))
 
         # TODO: Save to database asynchronously (SQLAlchemy + asyncpg)
 

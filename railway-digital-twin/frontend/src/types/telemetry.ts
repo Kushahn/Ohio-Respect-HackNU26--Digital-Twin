@@ -30,6 +30,9 @@ export interface HealthIndexData {
 export interface TelemetryResponse {
   telemetry: TelemetryData;
   health: HealthIndexData;
+  /** Режим симулятора на backend: NORMAL ≈1 Гц, HIGHLOAD ≈10 Гц */
+  simulator_mode?: "NORMAL" | "HIGHLOAD";
+  target_ingest_hz?: number;
 }
 
 export interface HistoryApiResponse {

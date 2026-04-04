@@ -2,7 +2,7 @@ import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import telemetry, health, history, config, auth
+from app.routers import telemetry, health, history, config, auth, simulator_mode
 
 app = FastAPI(
     title="Railway Digital Twin",
@@ -25,6 +25,7 @@ app.include_router(telemetry.router)
 app.include_router(history.router)
 app.include_router(config.router)
 app.include_router(auth.router)
+app.include_router(simulator_mode.router)
 
 @app.on_event("startup")
 async def startup_event():

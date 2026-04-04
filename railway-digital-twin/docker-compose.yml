@@ -59,6 +59,7 @@ services:
     build: ./backend
     environment:
       WS_URL: ws://backend:8000/ws/telemetry
+      API_BASE_URL: http://backend:8000
       SIMULATOR_MODE: ${SIMULATOR_MODE:-NORMAL}
       LOCOMOTIVE_ID: ${LOCOMOTIVE_ID:-KZ8A-Demo}
     command: ["python", "-m", "app.simulator.simulator"]

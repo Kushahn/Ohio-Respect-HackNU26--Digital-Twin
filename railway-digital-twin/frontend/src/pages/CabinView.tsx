@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FileDown } from "lucide-react";
+import { FileDown, Zap } from "lucide-react";
 import { getHistory } from "../api/history";
 import CabinReportPdfSource, { type CabinReportPdfPayload } from "../components/CabinReportPdfSource";
 import HealthIndexWidget from "../components/HealthIndexWidget";
@@ -11,6 +11,7 @@ import ElectricPanel from "../components/ElectricPanel";
 import TrendsPanel from "../components/TrendsPanel";
 import MapPanel from "../components/MapPanel";
 import ReplayControls from "../components/ReplayControls";
+import { toggleSimulatorMode } from "../api/simulatorMode";
 import { useTelemetry } from "../contexts/TelemetryContext";
 import { filterPointsByWindow, useSampleBuffer } from "../hooks/useSampleBuffer";
 import { usePositionKm } from "../hooks/usePositionKm";
@@ -37,7 +38,7 @@ function toTrendPoint(f: TelemetryResponse): TrendPoint {
 const DEFAULT_LOCO = "KZ8A-0001";
 
 export default function CabinView() {
-  const { data, isConnected, isReconnecting } = useTelemetry();
+  const { data, isConnected, isReconnecting, eventsPerSecond } = useTelemetry();
 
   const [trendWindow, setTrendWindow] = useState<TrendWindowMinutes>(10);
   const [replayWindow, setReplayWindow] = useState<TrendWindowMinutes>(10);
@@ -49,6 +50,7 @@ export default function CabinView() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pdfPayload, setPdfPayload] = useState<CabinReportPdfPayload | null>(null);
+  const [loadTogglePending, setLoadTogglePending] = useState(false);
 
   const pdfSourceRef = useRef<HTMLDivElement>(null);
   const localArchiveRef = useRef<TelemetryResponse[]>([]);
@@ -98,6 +100,22 @@ export default function CabinView() {
   }, [isPlaying, isReplayActive, replayFrames]);
 
   const locoId = data?.telemetry.locomotive_id ?? telemetry?.locomotive_id ?? DEFAULT_LOCO;
+
+  const liveHighload = data?.simulator_mode === "HIGHLOAD";
+
+  const handleToggleHighload = useCallback(async () => {
+    setLoadTogglePending(true);
+    try {
+      await toggleSimulatorMode();
+    } catch (e) {
+      console.error(e);
+      window.alert(
+        "Не удалось переключить режим симулятора. Нужен запущенный backend и симулятор с доступом к API (API_BASE_URL)."
+      );
+    } finally {
+      setLoadTogglePending(false);
+    }
+  }, []);
 
   const handleLoad = useCallback(async () => {
     setLoadError(null);
@@ -218,18 +236,47 @@ export default function CabinView() {
         </div>
       )}
 
-      <div className="cabin-toolbar">
-        <button
-          type="button"
-          className="btn btn-primary cabin-export-btn"
-          onClick={() => void handleExportReport()}
-          disabled={exporting}
-          title="Скачать CSV за 15 минут и PDF с индексом состояния"
-        >
-          <FileDown size={18} aria-hidden />
-          {exporting ? "Формирование…" : "Экспорт отчёта"}
-        </button>
-        <span className="cabin-toolbar-hint">CSV: телеметрия 15 мин · PDF: индекс, топ‑5 факторов, алерты</span>
+      <div className="cabin-toolbar cabin-toolbar-split">
+        <div className="cabin-toolbar-group">
+          <button
+            type="button"
+            className="btn btn-primary cabin-export-btn"
+            onClick={() => void handleExportReport()}
+            disabled={exporting}
+            title="Скачать CSV за 15 минут и PDF с индексом состояния"
+          >
+            <FileDown size={18} aria-hidden />
+            {exporting ? "Формирование…" : "Экспорт отчёта"}
+          </button>
+          <span className="cabin-toolbar-hint">CSV: телеметрия 15 мин · PDF: индекс, топ‑5 факторов, алерты</span>
+        </div>
+        <div className="cabin-toolbar-group cabin-load-controls" aria-label="Режим нагрузки симулятора">
+          {liveHighload && (
+            <span className="highload-pill" title="Симулятор шлёт ~10 кадров/с">
+              НАГРУЗКА ×10
+            </span>
+          )}
+          <span
+            className="eps-counter"
+            title="Скользящее окно 1 с: сколько кадров телеметрии пришло по WebSocket"
+          >
+            Событий/с: <strong>{eventsPerSecond}</strong>
+          </span>
+          <button
+            type="button"
+            className={`btn cabin-load-toggle ${liveHighload ? "btn-active-load" : ""}`}
+            onClick={() => void handleToggleHighload()}
+            disabled={loadTogglePending}
+            title="Переключает частоту симулятора между ~1 Гц и ~10 Гц (нужен процесс симулятора с опросом API)"
+          >
+            <Zap size={18} aria-hidden />
+            {loadTogglePending
+              ? "Переключение…"
+              : liveHighload
+                ? "Обычная нагрузка (1 Гц)"
+                : "Нагрузка ×10 (10 Гц)"}
+          </button>
+        </div>
       </div>
 
       {pdfPayload && <CabinReportPdfSource ref={pdfSourceRef} payload={pdfPayload} />}
