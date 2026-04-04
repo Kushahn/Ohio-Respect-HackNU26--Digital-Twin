@@ -117,8 +117,8 @@ docker-compose up --build
 
 | Сервис | URL |
 |--------|-----|
-| Экран «Кабина» (машинист) | http://localhost:5173/cab |
-| Экран диспетчера | http://localhost:5173/dispatch |
+| Экран «Кабина» (машинист) | http://localhost:3000/cab |
+| Экран диспетчера | http://localhost:3000/dispatch |
 | Swagger API (backend) | http://localhost:8000/docs |
 
 ### Локальный запуск (без Docker)
