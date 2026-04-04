@@ -307,6 +307,7 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/railway_twin
 REDIS_URL=redis://localhost:6379/0
 
 # JWT
+# ⚠️ Сгенерируй случайный ключ: python -c "import secrets; print(secrets.token_hex(32))"
 SECRET_KEY=your-secret-key-here-change-in-production
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=480
