@@ -1,278 +1,475 @@
-# 🚂 Цифровой двойник локомотива
+# 🚂 Railway Digital Twin — Визуальный цифровой двойник локомотива
 
-> Индекс здоровья и потоковая телеметрия для машинистов, диспетчеров и инженеров КТЖ
+> **HackNU 2026** | Full-stack прототип дашборда «цифрового двойника» локомотива с индексом здоровья и потоковой телеметрией
 
----
-
-## Обзор
-
-Промышленный прототип дашборда **«Цифровой двойник локомотива»** для Казахстанских железных дорог (КТЖ).
-
-Система принимает поток телеметрии локомотива в реальном времени, рассчитывает **индекс здоровья** (0–100) по прозрачным, детерминированным формулам и визуализирует состояние всех ключевых подсистем на удобных экранах для машиниста и диспетчера.
-
-### Поддерживаемые серии локомотивов
-
-| Серия | Тип | Мощность | Макс. скорость |
-|-------|------|----------|----------------|
-| **KZ8A** (Alstom Prima T8) | Грузовой электровоз | ~8 800 кВт | 120 км/ч |
-| **ТЭ33А** (GE Evolution) | Тепловоз | ~3 300 кВт | 100 км/ч |
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docker.com)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 ---
 
-## Ключевые возможности
+## 📋 Содержание
 
-- ⚡ **Потоковая телеметрия** — приём данных по WebSocket с частотой 1 Гц+ с буферизацией, сглаживанием (EMA/медиана) и валидацией
-- 🩺 **Индекс здоровья** — глобальный (0–100) + 5 подиндексов подсистем с объяснимостью (топ-5 факторов)
-- 📊 **Интерактивные графики** — тренды с авто-скейлингом, tooltips и zoom (5/10/15 мин)
-- 🗺️ **Карта/схема пути** — текущее положение, зоны ограничений и опасные участки
-- 🚨 **Система алертов** — коды неисправностей, критичные режимы, история событий
-- 🔄 **Replay** — воспроизведение исторических окон (5–15 минут)
-- 📄 **Экспорт отчётов** — CSV, PDF
-- 🌙 **Тёмная / светлая тема** — высококонтрастные цвета, крупные шрифты
-- 🔒 **Безопасность** — JWT-аутентификация, разделение safety-related и аналитических функций
+- [О проекте](#-о-проекте)
+- [Архитектура](#-архитектура)
+- [Функциональность](#-функциональность)
+- [Стек технологий](#-стек-технологий)
+- [Быстрый старт (Docker)](#-быстрый-старт-docker)
+- [Запуск без Docker](#-запуск-без-docker)
+- [Переменные окружения](#-переменные-окружения)
+- [API документация](#-api-документация)
+- [Тестирование](#-тестирование)
+- [Структура проекта](#-структура-проекта)
+- [Индекс здоровья](#-формула-индекса-здоровья)
+- [Скриншоты](#-скриншоты)
 
 ---
 
-## Архитектура (High-Level)
+## 🎯 О проекте
+
+**Railway Digital Twin** — это full-stack веб-приложение, которое агрегирует поток телеметрии локомотива в реальном времени и превращает сотни сырых параметров в понятную, приоритизированную картину состояния.
+
+### Ключевые возможности
+
+- **Индекс здоровья** (0–100) — единый интегральный показатель состояния локомотива с объяснимостью (топ-5 факторов)
+- **Реалтайм дашборд** — обновление по WebSocket с задержкой < 500 мс
+- **Симулятор телеметрии** — генерирует реалистичные данные на 1 Гц и 10 Гц (highload)
+- **Replay** — просмотр последних 15 минут истории
+- **Экспорт** — CSV телеметрии и PDF рейсового отчёта
+- **Диспетчерский вид** — мониторинг всего флота составов
+
+---
+
+## 🏗 Архитектура
 
 ```
-┌───────────────┐     WebSocket      ┌──────────────────────┐
-│  Бортовой     │ ──────────────────▶│  Backend (FastAPI)    │
-│  блок /       │                    │  ┌─────────────────┐  │
-│  Симулятор    │                    │  │ Telemetry       │  │
-│  телеметрии   │                    │  │ Processor       │  │
-└───────────────┘                    │  │ (буфер, фильтр, │  │
-                                     │  │  валидация)     │  │
-                                     │  └────────┬────────┘  │
-                                     │           │           │
-                                     │  ┌────────▼────────┐  │
-                                     │  │ Health Engine   │  │
-                                     │  │ (индекс 0-100)  │  │
-                                     │  └────────┬────────┘  │
-                                     │           │           │
-                                     └───────────┼───────────┘
-                                          │      │      │
-                              ┌───────────┘      │      └───────────┐
-                              ▼                  ▼                  ▼
-                       ┌────────────┐    ┌──────────────┐   ┌──────────────┐
-                       │ PostgreSQL │    │    Redis      │   │  WebSocket   │
-                       │ (история)  │    │  (буфер RT)   │   │  → Frontend  │
-                       └────────────┘    └──────────────┘   └──────┬───────┘
-                                                                   │
-                                                                   ▼
-                                                          ┌──────────────────┐
-                                                          │  Frontend        │
-                                                          │  (React + Vite)  │
-                                                          │                  │
-                                                          │  • Кабина        │
-                                                          │  • Диспетчер     │
-                                                          └──────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    FRONTEND (React + Vite)               │
+│   Кабина машиниста  │  Диспетчер  │  Исторические данные │
+└───────────────┬─────────────────────────────────────────┘
+                │ WebSocket / REST API
+┌───────────────▼─────────────────────────────────────────┐
+│               BACKEND (FastAPI + Python)                 │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐  │
+│  │Simulator │ │Telemetry │ │  Health  │ │  Export    │  │
+│  │(mock data│ │ Router   │ │  Index   │ │  Service   │  │
+│  │ 1–10 Гц) │ │(WS/SSE)  │ │ Engine   │ │(PDF/CSV)   │  │
+│  └──────────┘ └──────────┘ └──────────┘ └────────────┘  │
+└────────────┬────────────────────────────────────────────┘
+             │
+┌────────────▼────────────────────────────────────────────┐
+│  PostgreSQL (история 72ч)  │  Redis (очередь событий)   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Поток данных:**
+```
+Симулятор → WebSocket → Буфер + EMA-сглаживание → Индекс здоровья → UI
+                                                 → PostgreSQL (история)
+                                                 → Redis (pub/sub)
 ```
 
 ---
 
-## Технологический стек
+## ⚡ Функциональность
 
-### Backend
-- **Python 3.11** — FastAPI (async) + Uvicorn
-- **SQLAlchemy** + asyncpg — ORM и работа с БД
-- **PostgreSQL** — хранение истории (совместимо с TimescaleDB)
-- **Redis** — буфер событий реального времени
-- **Pydantic** — валидация данных
-- **Alembic** — миграции БД
+### Дашборд машиниста
+| Панель | Параметры |
+|---|---|
+| **Индекс здоровья** | 0–100, цветовая индикация, топ-5 факторов |
+| **Скорость** | текущая, график тренда, ограничения |
+| **Топливо/Энергия** | уровень, расход, прогноз |
+| **Температуры/Давления** | масло, охлаждение, тормоза |
+| **Электрика** | напряжение, ток, статус |
+| **Алерты** | приоритетные предупреждения, рекомендации |
+| **Карта** | текущее положение на участке пути |
 
-### Frontend
-- **React 18** + **TypeScript**
-- **Vite** — сборка и dev-сервер
-- **Recharts** — интерактивные графики
-- **Leaflet** — карта / схема пути
+### Диспетчерский вид
+- Список всего флота с индексами здоровья
+- Статус связи каждого состава
+- Критичные алерты по всем составам
 
-### Инфраструктура
-- **Docker** + **Docker Compose**
-- **Swagger / OpenAPI** — автодокументация API (`/docs`)
+### Realtime и надёжность
+- WebSocket с авто-переподключением (backoff)
+- EMA-сглаживание шумов (α = 0.3)
+- Буферизация при разрыве соединения
+- Индикатор «нет связи»
+- Highload режим: x10 событий/сек
 
 ---
 
-## Быстрый старт
+## 🛠 Стек технологий
 
-### Предварительные требования
+| Слой | Технологии |
+|---|---|
+| **Frontend** | React 18, Vite, Recharts, Tailwind CSS, Socket.IO-client |
+| **Backend** | Python 3.11+, FastAPI, Uvicorn, WebSockets |
+| **База данных** | PostgreSQL 15 + SQLAlchemy 2.0 (asyncpg) |
+| **Очередь** | Redis 7 |
+| **Миграции** | Alembic |
+| **Аутентификация** | JWT (python-jose) + bcrypt (passlib) |
+| **Инфра** | Docker Compose, Nginx |
+| **Документация API** | OpenAPI / Swagger UI |
 
-- Docker и Docker Compose **или**
-- Python 3.11+, Node.js 18+, PostgreSQL 15+, Redis 7+
+---
 
-### Запуск через Docker Compose (рекомендуется)
+## 🐳 Быстрый старт (Docker)
 
-Поднимаются **PostgreSQL**, **Redis**, **backend** (FastAPI / Uvicorn), **frontend** (сборка Vite + **nginx** для статики и SPA), а также **симулятор телеметрии** (отдельный контейнер из образа backend, подключается к `ws://backend:8000/ws/telemetry`).
+### Требования
+- [Docker](https://docs.docker.com/get-docker/) 24+
+- [Docker Compose](https://docs.docker.com/compose/install/) 2.20+
+
+### 1. Клонировать репозиторий
 
 ```bash
-# 1. Клонировать репозиторий
-git clone <url> && cd railway-digital-twin
+git clone https://github.com/Kushahn/Ohio-Respect-HackNU26--Digital-Twin.git
+cd railway-digital-twin
+```
 
-# 2. Скопировать переменные окружения
-cp .env.example .env
+### 2. Настроить переменные окружения
 
-# 3. Собрать образы и запустить стек (Docker Compose V2)
+```bash
+cp backend/.env.example backend/.env
+```
+
+> Для локального запуска значения по умолчанию уже заполнены — менять ничего не нужно.
+
+### 3. Запустить все сервисы
+
+```bash
 docker compose up --build
 ```
 
-Переменные из **`.env`** в корне проекта подхватываются Compose (порты, секреты БД, `JWT_*`). Для **сборки** фронтенда важны **`VITE_API_BASE_URL`** и **`VITE_WS_URL`**: они «запекаются» в статику на этапе `docker build`. Для доступа с вашего ПК к API и WebSocket на хосте оставьте значения по умолчанию: `http://localhost:8000` и `ws://localhost:8000/ws/telemetry`.
+Первый запуск занимает ~3–5 минут (сборка образов).
 
-Опционально в `.env` можно задать порты: `FRONTEND_PORT`, `BACKEND_PORT`, `POSTGRES_PORT`, `REDIS_PORT`.
+### 4. Открыть приложение
 
-После запуска откройте в браузере:
+| Сервис | URL |
+|---|---|
+| 🖥 **Дашборд (UI)** | http://localhost:3000 |
+| 📡 **Backend API** | http://localhost:8000 |
+| 📚 **Swagger UI** | http://localhost:8000/docs |
+| 🗄 **pgAdmin** (опц.) | http://localhost:5050 |
 
-| Что открыть | URL |
-|-------------|-----|
-| Экран «Кабина» (машинист) | http://localhost:3000/cab |
-| Экран диспетчера | http://localhost:3000/dispatch |
-| Корень UI (редирект на кабину) | http://localhost:3000/ |
-| Swagger / OpenAPI (backend) | http://localhost:8000/docs |
-| Проверка живости API | http://localhost:8000/healthcheck |
+### Остановить
 
-### Локальный запуск (без Docker)
+```bash
+docker compose down
+```
 
-#### Backend
+Удалить тома с данными:
+
+```bash
+docker compose down -v
+```
+
+### Учётные данные по умолчанию
+
+| Роль | Логин | Пароль |
+|---|---|---|
+| Машинист | `driver` | `driver123` |
+| Диспетчер | `dispatcher` | `disp123` |
+| Администратор | `admin` | `admin123` |
+
+---
+
+## 🔧 Запуск без Docker
+
+### Требования
+
+- Python 3.11+
+- Node.js 18+
+- PostgreSQL 14+
+- Redis 7+
+
+---
+
+### Backend
+
+#### 1. Перейти в папку backend
 
 ```bash
 cd backend
-python -m venv venv
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-# source venv/bin/activate
-
-pip install -r requirements.txt
-cp .env.example .env
-# Отредактируйте .env — укажите реальные адреса PostgreSQL и Redis
-
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-#### Frontend
+#### 2. Создать и активировать виртуальное окружение
+
+**Windows:**
+```bat
+python -m venv venv
+venv\Scripts\activate
+```
+
+**macOS / Linux:**
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+#### 3. Установить зависимости
+
+> ⚠️ На Windows с MinGW numpy собрать из исходников нельзя — сначала ставим бинарник:
+
+**Windows:**
+```bat
+pip install --only-binary=all numpy
+pip install fastapi uvicorn[standard]
+pip install sqlalchemy[asyncio] asyncpg alembic
+pip install redis[hiredis]
+pip install pydantic pydantic-settings python-dotenv
+pip install python-jose[cryptography] passlib[bcrypt]
+pip install scipy pandas websockets httpx
+```
+
+**macOS / Linux:**
+```bash
+pip install -r requirements.txt
+```
+
+#### 4. Настроить переменные окружения
+
+```bash
+cp .env.example .env
+# Отредактируй .env: DATABASE_URL, REDIS_URL, SECRET_KEY
+```
+
+#### 5. Применить миграции базы данных
+
+```bash
+alembic upgrade head
+```
+
+#### 6. Запустить сервер
+
+```bash
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Backend доступен: http://localhost:8000
+
+---
+
+### Frontend
+
+#### 1. Перейти в папку frontend
 
 ```bash
 cd frontend
+```
+
+#### 2. Установить зависимости
+
+```bash
 npm install
+```
+
+#### 3. Настроить переменные окружения
+
+```bash
+cp .env.example .env.local
+# VITE_API_URL=http://localhost:8000
+# VITE_WS_URL=ws://localhost:8000
+```
+
+#### 4. Запустить dev-сервер
+
+```bash
 npm run dev
 ```
 
-#### Симулятор телеметрии
+Frontend доступен: http://localhost:3000
+
+---
+
+### Запуск симулятора телеметрии (опционально)
+
+Если хочешь запустить симулятор отдельно:
 
 ```bash
 cd backend
-python -m app.simulator.simulator
+python -m app.simulator.run --hz 1       # нормальный режим
+python -m app.simulator.run --hz 10      # highload x10
 ```
 
 ---
 
-## Структура репозитория
+## 🔐 Переменные окружения
+
+### backend/.env
+
+```env
+# База данных
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/railway_twin
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# JWT
+SECRET_KEY=your-secret-key-here-change-in-production
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=480
+
+# CORS (через запятую)
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# Симулятор
+SIMULATOR_HZ=1
+SIMULATOR_LOCOMOTIVES=3
+
+# Окружение
+ENVIRONMENT=development
+DEBUG=true
+```
+
+> ⚠️ **Никогда не коммить `.env` в репозиторий!** Только `.env.example`.
+
+---
+
+## 📚 API документация
+
+После запуска backend откройте:
+
+- **Swagger UI:** http://localhost:8000/docs
+- **ReDoc:** http://localhost:8000/redoc
+- **OpenAPI JSON:** http://localhost:8000/openapi.json
+
+### Основные эндпоинты
+
+| Метод | Путь | Описание |
+|---|---|---|
+| `POST` | `/auth/login` | Получить JWT токен |
+| `GET` | `/api/locomotives` | Список локомотивов |
+| `GET` | `/api/locomotives/{id}/telemetry` | Текущая телеметрия |
+| `GET` | `/api/locomotives/{id}/history` | История (параметры: `from`, `to`, `limit`) |
+| `GET` | `/api/locomotives/{id}/health` | Индекс здоровья + топ-5 факторов |
+| `GET` | `/api/locomotives/{id}/alerts` | Активные алерты |
+| `WS` | `/ws/telemetry/{id}` | WebSocket поток телеметрии |
+| `GET` | `/api/export/{id}/csv` | Экспорт телеметрии в CSV |
+| `GET` | `/api/export/{id}/pdf` | Экспорт отчёта в PDF |
+| `GET` | `/health` | Health-check сервиса |
+
+---
+
+## 🧪 Тестирование
+
+### Запустить все тесты
+
+```bash
+cd backend
+pytest
+```
+
+### Тест highload (x10)
+
+```bash
+python -m app.simulator.run --hz 10 --duration 60
+```
+
+### Нагрузочный тест API
+
+```bash
+# Требуется locust
+pip install locust
+locust -f tests/locustfile.py --host=http://localhost:8000
+```
+
+---
+
+## 📁 Структура проекта
 
 ```
 railway-digital-twin/
-├── README.md                          ← вы здесь
-├── docker-compose.yml
-├── .gitignore
-├── .env.example
 ├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── auth.py          # JWT аутентификация
+│   │   │   ├── locomotives.py   # REST эндпоинты
+│   │   │   ├── export.py        # CSV / PDF экспорт
+│   │   │   └── websocket.py     # WebSocket хендлер
+│   │   ├── core/
+│   │   │   ├── config.py        # Настройки (pydantic-settings)
+│   │   │   ├── database.py      # SQLAlchemy async engine
+│   │   │   └── security.py      # JWT, bcrypt
+│   │   ├── models/
+│   │   │   ├── telemetry.py     # ORM модели
+│   │   │   └── user.py
+│   │   ├── services/
+│   │   │   ├── health_index.py  # Алгоритм индекса здоровья
+│   │   │   ├── noise_filter.py  # EMA / медианный фильтр
+│   │   │   └── alert_engine.py  # Генератор алертов
+│   │   ├── simulator/
+│   │   │   ├── generator.py     # Генератор телеметрии
+│   │   │   └── run.py           # Точка входа симулятора
+│   │   └── main.py              # FastAPI приложение
+│   ├── alembic/                 # Миграции БД
+│   ├── tests/
 │   ├── requirements.txt
-│   ├── .env.example
-│   └── app/
-│       ├── main.py                    — точка входа FastAPI
-│       ├── config.py                  — конфигурация из .env
-│       ├── models.py                  — SQLAlchemy модели
-│       ├── schemas.py                 — Pydantic-схемы
-│       ├── services/
-│       │   ├── health_engine.py       — расчёт индекса здоровья
-│       │   └── telemetry_processor.py — обработка телеметрии
-│       ├── routers/
-│       │   ├── telemetry.py           — WebSocket /ws/telemetry
-│       │   ├── health.py              — GET /api/health
-│       │   ├── history.py             — GET /api/history
-│       │   ├── config.py              — GET/PUT /api/config
-│       │   └── auth.py               — POST /api/auth/login
-│       └── simulator/
-│           └── simulator.py           — генератор телеметрии
+│   ├── Dockerfile
+│   └── .env.example
+│
 ├── frontend/
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── vite.config.ts
-│   └── src/
-│       ├── main.tsx
-│       ├── App.tsx
-│       ├── api/
-│       ├── hooks/
-│       │   └── useWebSocket.ts
-│       ├── components/
-│       │   ├── layout/
-│       │   ├── HealthIndexWidget.tsx
-│       │   ├── SpeedPanel.tsx
-│       │   ├── EnergyPanel.tsx
-│       │   ├── PressureTempPanel.tsx
-│       │   ├── ElectricPanel.tsx
-│       │   ├── AlertsPanel.tsx
-│       │   ├── TrendsPanel.tsx
-│       │   └── MapPanel.tsx
-│       └── pages/
-│           ├── CabinView.tsx
-│           └── DispatcherView.tsx
-└── docs/
-    ├── architecture.md                — архитектура системы
-    ├── demo-scenario.md               — сценарий демонстрации
-    └── safety-notes.md                — функциональная безопасность
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Dashboard/       # Дашборд машиниста
+│   │   │   ├── Dispatcher/      # Диспетчерский вид
+│   │   │   ├── HealthIndex/     # Виджет индекса здоровья
+│   │   │   ├── Charts/          # Графики и тренды
+│   │   │   └── Map/             # Карта маршрута
+│   │   ├── hooks/
+│   │   │   ├── useWebSocket.ts  # WebSocket с reconnect
+│   │   │   └── useTelemetry.ts  # Буфер + EMA
+│   │   ├── store/               # Zustand state
+│   │   ├── api/                 # REST клиент
+│   │   └── App.tsx
+│   ├── Dockerfile
+│   └── .env.example
+│
+├── docker-compose.yml
+├── docker-compose.prod.yml
+├── nginx/
+│   └── nginx.conf
+└── README.md
 ```
 
 ---
 
-## Индекс здоровья — краткое описание
-
-Индекс здоровья — **детерминированная математическая формула** (без ML), понятная инженерам-эксплуатационникам.
-
-### Подиндексы (0–100 каждый)
-
-| Подиндекс | Вес | Параметры |
-|-----------|-----|-----------|
-| Двигатель и тяга | 0.30 | Ток, напряжение, температура, обороты |
-| Тормозная система | 0.25 | Давление магистрали, давление цилиндров |
-| Электрика и питание | 0.20 | Напряжение сети, ток вспомогательных нужд |
-| Топливо / энергоэффективность | 0.15 | Расход, уровень, КПД |
-| Диагностика и ошибки | 0.10 | Коды неисправностей, количество алертов |
-
-### Глобальный индекс
+## 📊 Формула индекса здоровья
 
 ```
-HealthIndex = Σ (weight_i × subindex_i) − penalty_alerts
+HealthIndex = 100 - Σ(weight_i × penalty_i) - alert_penalty
+
+Подиндексы и веса:
+  Тяга и двигатель    25%
+  Тормозная система   25%
+  Температуры         20%
+  Электрика           15%
+  Топливо/запас хода  10%
+  Скорость/маршрут     5%
+
+Категории:
+  🟢 Норма     90–100
+  🟡 Внимание  70–89
+  🔴 Критично   0–69
 ```
 
-### Категории
-
-| Диапазон | Категория | Буква | Цвет |
-|----------|-----------|-------|------|
-| 80–100 | Норма | A | 🟢 Зелёный |
-| 50–79 | Внимание | B–C | 🟡 Жёлтый |
-| 0–49 | Критично | D–E | 🔴 Красный |
+Конфигурация весов и порогов — в `backend/app/config/health_weights.yaml`, без перекомпиляции.
 
 ---
 
-## Функциональная безопасность
+## 🖼 Скриншоты
 
-Прототип разработан с учётом принципов **IEC 61508 / EN 50128 (SIL 3)**:
-
-- Все safety-related вычисления (индекс здоровья, алерты) — **детерминированные** формулы
-- **Нет ML / нейросетей** в safety-critical пути
-- Прозрачные, документированные пороги и формулы
-- Разделение safety-related и аналитических функций
-- Подробнее: [`docs/safety-notes.md`](docs/safety-notes.md)
+| Дашборд машиниста | Диспетчерский вид |
+|---|---|
+| ![Кабина](docs/screenshots/cabin.jpeg) | ![Диспетчер](docs/screenshots/dispatcher.jpeg) |
 
 ---
 
-## Документация
+## 📄 Лицензия
 
-- [Архитектура](docs/architecture.md)
-- [Демо-сценарий](docs/demo-scenario.md)
-- [Функциональная безопасность](docs/safety-notes.md)
+MIT License — см. [LICENSE](LICENSE)
 
 ---
 
-## Лицензия
-
-Прототип для хакатона КТЖ. Все данные — синтетические.
+> Разработано для **HackNU 2026** | Кейс от Казахстанских железных дорог (КТЖ)
