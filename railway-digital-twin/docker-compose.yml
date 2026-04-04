@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: railway
+      POSTGRES_PASSWORD: railway_secret
+      POSTGRES_DB: railway_twin
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://railway:railway_secret@db:5432/railway_twin
+      REDIS_URL: redis://redis:6379/0
+      BACKEND_HOST: 0.0.0.0
+    depends_on:
+      - db
+      - redis
+    restart: always
+
+  simulator:
+    build: ./backend
+    env_file:
+      - .env
+    environment:
+      WS_URL: "ws://backend:8000/ws/telemetry"
+      SIMULATOR_MODE: "NORMAL"
+      LOCOMOTIVE_ID: "KZ8A-Demo"
+    command: ["python", "-m", "app.simulator.simulator"]
+    depends_on:
+      - backend
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      # Pass API URL to Vite build so we can bake it into the static files
+      args:
+        VITE_WS_URL: "ws://localhost:8000/ws/telemetry"
+        VITE_API_BASE_URL: "http://localhost:8000"
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  pgdata:
