@@ -102,6 +102,8 @@
 
 ### Запуск через Docker Compose (рекомендуется)
 
+Поднимаются **PostgreSQL**, **Redis**, **backend** (FastAPI / Uvicorn), **frontend** (сборка Vite + **nginx** для статики и SPA), а также **симулятор телеметрии** (отдельный контейнер из образа backend, подключается к `ws://backend:8000/ws/telemetry`).
+
 ```bash
 # 1. Клонировать репозиторий
 git clone <url> && cd railway-digital-twin
@@ -109,17 +111,23 @@ git clone <url> && cd railway-digital-twin
 # 2. Скопировать переменные окружения
 cp .env.example .env
 
-# 3. Запустить все сервисы
-docker-compose up --build
+# 3. Собрать образы и запустить стек (Docker Compose V2)
+docker compose up --build
 ```
 
-После запуска:
+Переменные из **`.env`** в корне проекта подхватываются Compose (порты, секреты БД, `JWT_*`). Для **сборки** фронтенда важны **`VITE_API_BASE_URL`** и **`VITE_WS_URL`**: они «запекаются» в статику на этапе `docker build`. Для доступа с вашего ПК к API и WebSocket на хосте оставьте значения по умолчанию: `http://localhost:8000` и `ws://localhost:8000/ws/telemetry`.
 
-| Сервис | URL |
-|--------|-----|
+Опционально в `.env` можно задать порты: `FRONTEND_PORT`, `BACKEND_PORT`, `POSTGRES_PORT`, `REDIS_PORT`.
+
+После запуска откройте в браузере:
+
+| Что открыть | URL |
+|-------------|-----|
 | Экран «Кабина» (машинист) | http://localhost:3000/cab |
 | Экран диспетчера | http://localhost:3000/dispatch |
-| Swagger API (backend) | http://localhost:8000/docs |
+| Корень UI (редирект на кабину) | http://localhost:3000/ |
+| Swagger / OpenAPI (backend) | http://localhost:8000/docs |
+| Проверка живости API | http://localhost:8000/healthcheck |
 
 ### Локальный запуск (без Docker)
 

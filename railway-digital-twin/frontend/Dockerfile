@@ -1,8 +1,14 @@
-# Stage 1: Build React App
+# Stage 1: Build React App (Vite bakes VITE_* at build time)
 FROM node:18-alpine AS builder
 WORKDIR /app
+
+ARG VITE_API_BASE_URL=http://localhost:8000
+ARG VITE_WS_URL=ws://localhost:8000/ws/telemetry
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 COPY . .
 RUN npm run build
 

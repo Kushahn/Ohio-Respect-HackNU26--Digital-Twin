@@ -1,64 +1,70 @@
-version: '3.8'
-
 services:
-  db:
+  postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: railway
-      POSTGRES_PASSWORD: railway_secret
-      POSTGRES_DB: railway_twin
+      POSTGRES_USER: ${POSTGRES_USER:-railway}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-railway_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-railway_twin}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-railway} -d ${POSTGRES_DB:-railway_twin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
 
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://railway:railway_secret@db:5432/railway_twin
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-railway}:${POSTGRES_PASSWORD:-railway_secret}@postgres:5432/${POSTGRES_DB:-railway_twin}
       REDIS_URL: redis://redis:6379/0
-      BACKEND_HOST: 0.0.0.0
     depends_on:
-      - db
-      - redis
-    restart: always
-
-  simulator:
-    build: ./backend
-    env_file:
-      - .env
-    environment:
-      WS_URL: "ws://backend:8000/ws/telemetry"
-      SIMULATOR_MODE: "NORMAL"
-      LOCOMOTIVE_ID: "KZ8A-Demo"
-    command: ["python", "-m", "app.simulator.simulator"]
-    depends_on:
-      - backend
-    restart: always
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
-      # Pass API URL to Vite build so we can bake it into the static files
       args:
-        VITE_WS_URL: "ws://localhost:8000/ws/telemetry"
-        VITE_API_BASE_URL: "http://localhost:8000"
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8000/ws/telemetry}
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       - backend
-    restart: always
+    restart: unless-stopped
+
+  simulator:
+    build: ./backend
+    environment:
+      WS_URL: ws://backend:8000/ws/telemetry
+      SIMULATOR_MODE: ${SIMULATOR_MODE:-NORMAL}
+      LOCOMOTIVE_ID: ${LOCOMOTIVE_ID:-KZ8A-Demo}
+    command: ["python", "-m", "app.simulator.simulator"]
+    depends_on:
+      - backend
+    restart: unless-stopped
 
 volumes:
   pgdata:
