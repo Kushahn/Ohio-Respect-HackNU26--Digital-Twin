@@ -541,6 +541,21 @@ html[data-theme="light"] {
   margin-bottom: 16px;
 }
 
+.dispatch-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dispatch-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .dispatch-title {
   margin: 0;
   font-size: 1.25rem;

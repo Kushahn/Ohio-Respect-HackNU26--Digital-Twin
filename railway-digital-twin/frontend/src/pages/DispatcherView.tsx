@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FileDown } from "lucide-react";
 import HealthIndexWidget from "../components/HealthIndexWidget";
 import SpeedPanel from "../components/SpeedPanel";
 import AlertsPanel from "../components/AlertsPanel";
@@ -7,6 +8,7 @@ import PressureTempPanel from "../components/PressureTempPanel";
 import ElectricPanel from "../components/ElectricPanel";
 import { useTelemetry } from "../contexts/TelemetryContext";
 import type { TelemetryResponse } from "../types/telemetry";
+import { downloadDispatchSummaryCsv } from "../utils/dispatchExport";
 
 interface TrainRow {
   id: string;
@@ -57,8 +59,21 @@ export default function DispatcherView() {
   return (
     <div className="dispatch-page">
       <header className="dispatch-header">
-        <h2 className="dispatch-title">Диспетчерский контроль</h2>
-        <p className="dispatch-sub">Список составов и детальный срез выбранного поезда</p>
+        <div className="dispatch-header-row">
+          <div>
+            <h2 className="dispatch-title">Диспетчерский контроль</h2>
+            <p className="dispatch-sub">Список составов и детальный срез выбранного поезда</p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary dispatch-export-btn"
+            onClick={() => downloadDispatchSummaryCsv(rows, isConnected)}
+            title="Скачать сводку по строкам таблицы составов"
+          >
+            <FileDown size={18} aria-hidden />
+            Экспорт сводки
+          </button>
+        </div>
       </header>
 
       <div className="dispatch-layout">

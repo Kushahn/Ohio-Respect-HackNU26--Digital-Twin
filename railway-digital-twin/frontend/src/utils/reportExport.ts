@@ -51,7 +51,7 @@ export async function loadFramesLast15Minutes(
   return filterFramesLastMinutes(merged, 15);
 }
 
-function escapeCsvCell(v: string): string {
+export function escapeCsvCell(v: string): string {
   if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
   return v;
 }
