@@ -285,6 +285,77 @@ html[data-theme="light"] {
   min-height: 0;
 }
 
+.cabin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.cabin-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cabin-toolbar-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  max-width: 420px;
+  line-height: 1.35;
+}
+
+/* Вне экрана: только для захвата jsPDF + html2canvas */
+.cabin-report-pdf-source {
+  position: fixed;
+  left: -12000px;
+  top: 0;
+  width: 820px;
+  padding: 28px 32px;
+  background: #ffffff;
+  color: #0f172a;
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  box-sizing: border-box;
+}
+
+.crp-title {
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.crp-h2 {
+  margin: 20px 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  border-bottom: 1px solid #cbd5e1;
+  padding-bottom: 4px;
+}
+
+.crp-meta,
+.crp-line {
+  margin: 0 0 8px;
+  color: #334155;
+}
+
+.crp-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.crp-list li {
+  margin-bottom: 6px;
+}
+
+.crp-footer {
+  margin-top: 28px;
+  font-size: 11px;
+  color: #64748b;
+}
+
 .banner-offline,
 .banner-wait {
   margin: 0 0 12px;

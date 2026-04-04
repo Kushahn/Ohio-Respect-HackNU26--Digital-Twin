@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FileDown } from "lucide-react";
 import { getHistory } from "../api/history";
+import CabinReportPdfSource, { type CabinReportPdfPayload } from "../components/CabinReportPdfSource";
 import HealthIndexWidget from "../components/HealthIndexWidget";
 import SpeedPanel from "../components/SpeedPanel";
 import AlertsPanel from "../components/AlertsPanel";
@@ -12,6 +14,13 @@ import ReplayControls from "../components/ReplayControls";
 import { useTelemetry } from "../contexts/TelemetryContext";
 import { filterPointsByWindow, useSampleBuffer } from "../hooks/useSampleBuffer";
 import { usePositionKm } from "../hooks/usePositionKm";
+import { saveHealthReportPdf } from "../utils/healthReportPdf";
+import {
+  downloadTextFile,
+  formatExportStamp,
+  loadFramesLast15Minutes,
+  telemetryFramesToCsv,
+} from "../utils/reportExport";
 import type { TelemetryResponse, TrendPoint, TrendWindowMinutes } from "../types/telemetry";
 
 function toTrendPoint(f: TelemetryResponse): TrendPoint {
@@ -38,7 +47,10 @@ export default function CabinView() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [pdfPayload, setPdfPayload] = useState<CabinReportPdfPayload | null>(null);
 
+  const pdfSourceRef = useRef<HTMLDivElement>(null);
   const localArchiveRef = useRef<TelemetryResponse[]>([]);
   useEffect(() => {
     if (!data) return;
@@ -136,6 +148,61 @@ export default function CabinView() {
     setLoadError(null);
   }, []);
 
+  useEffect(() => {
+    if (!pdfPayload) return;
+    const run = async () => {
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      const el = pdfSourceRef.current;
+      if (!el) {
+        setPdfPayload(null);
+        setExporting(false);
+        return;
+      }
+      const stamp = formatExportStamp(pdfPayload.exportTime);
+      const safeLoco = pdfPayload.telemetry.locomotive_id.replace(/[^\w.-]+/g, "_");
+      try {
+        await saveHealthReportPdf(el, `health-report-${safeLoco}-${stamp}.pdf`);
+      } catch (e) {
+        console.error(e);
+        window.alert("Не удалось сформировать PDF. Проверьте консоль браузера.");
+      } finally {
+        setPdfPayload(null);
+        setExporting(false);
+      }
+    };
+    void run();
+  }, [pdfPayload]);
+
+  const handleExportReport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const frames = await loadFramesLast15Minutes(locoId, localArchiveRef.current);
+      if (!frames.length) {
+        window.alert(
+          "Нет данных телеметрии за последние 15 минут. Запустите симулятор или дождитесь накопления буфера."
+        );
+        setExporting(false);
+        return;
+      }
+      const stamp = formatExportStamp(new Date());
+      const safeLoco = locoId.replace(/[^\w.-]+/g, "_");
+      const csv = telemetryFramesToCsv(frames);
+      downloadTextFile(`telemetry-${safeLoco}-15m-${stamp}.csv`, csv, "text/csv;charset=utf-8");
+
+      const last = frames[frames.length - 1];
+      setPdfPayload({
+        telemetry: last.telemetry,
+        health: last.health,
+        exportTime: new Date(),
+        rowCount: frames.length,
+      });
+    } catch (e) {
+      console.error(e);
+      window.alert("Ошибка при подготовке отчёта.");
+      setExporting(false);
+    }
+  }, [locoId]);
+
   return (
     <div className="cabin-page">
       {!isConnected && (
@@ -150,6 +217,22 @@ export default function CabinView() {
           Ожидание телеметрии… Убедитесь, что запущен симулятор (<code>python -m app.simulator.simulator</code>).
         </div>
       )}
+
+      <div className="cabin-toolbar">
+        <button
+          type="button"
+          className="btn btn-primary cabin-export-btn"
+          onClick={() => void handleExportReport()}
+          disabled={exporting}
+          title="Скачать CSV за 15 минут и PDF с индексом состояния"
+        >
+          <FileDown size={18} aria-hidden />
+          {exporting ? "Формирование…" : "Экспорт отчёта"}
+        </button>
+        <span className="cabin-toolbar-hint">CSV: телеметрия 15 мин · PDF: индекс, топ‑5 факторов, алерты</span>
+      </div>
+
+      {pdfPayload && <CabinReportPdfSource ref={pdfSourceRef} payload={pdfPayload} />}
 
       <div className="cabin-grid">
         <div className="cabin-health">
