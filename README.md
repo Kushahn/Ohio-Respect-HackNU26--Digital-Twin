@@ -197,13 +197,16 @@ PostgreSQL 15+ — postgresql.org
 Redis — через Memurai (Redis для Windows) или redis.io/download
 
 Шаг 1 — Клонировать репозиторий
+text
 git clone https://github.com/Kushahn/Ohio-Respect-HackNU26--Digital-Twin.git
 cd Ohio-Respect-HackNU26--Digital-Twin\railway-digital-twin
 Шаг 2 — Настроить переменные окружения
+text
 copy .env.example .env
 notepad .env
 В файле .env заполни:
 
+text
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/railway_twin
 REDIS_URL=redis://localhost:6379
 SECRET_KEY=any-random-secret-string-here
@@ -217,12 +220,14 @@ CREATE DATABASE railway_twin;
 Шаг 4 — Запустить Backend
 Открой первый терминал (PowerShell или CMD):
 
+text
 cd railway-digital-twin\backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 Применить миграции и запустить сервер:
 
+text
 python manage.py migrate
 python manage.py runserver 0.0.0.0:8000
 Backend будет доступен на http://localhost:8000
@@ -230,6 +235,7 @@ Backend будет доступен на http://localhost:8000
 Шаг 5 — Запустить Frontend
 Открой второй терминал:
 
+text
 cd railway-digital-twin\frontend
 npm install
 npm run dev
@@ -238,12 +244,14 @@ Frontend будет доступен на http://localhost:3000
 Шаг 6 — Запустить Redis (Memurai)
 Если установил Memurai — он запускается автоматически как служба Windows. Проверить:
 
+text
 memurai-cli ping
 Ответ должен быть PONG.
 
 Шаг 7 — Запустить Celery (воркер задач)
 Открой третий терминал:
 
+text
 cd railway-digital-twin\backend
 venv\Scripts\activate
 celery -A core worker --loglevel=info --pool=solo
@@ -252,11 +260,10 @@ celery -A core worker --loglevel=info --pool=solo
 Шаг 8 — Запустить симулятор телеметрии
 Открой четвёртый терминал:
 
+text
 cd railway-digital-twin\backend
 venv\Scripts\activate
 python manage.py simulate_telemetry
-
-
 ### Backend
 
 #### 1. Перейти в папку backend
