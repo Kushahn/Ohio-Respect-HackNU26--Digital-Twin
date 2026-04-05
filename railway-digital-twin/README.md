@@ -463,7 +463,7 @@ HealthIndex = 100 - Σ(weight_i × penalty_i) - alert_penalty
 
 | Дашборд машиниста | Диспетчерский вид |
 |---|---|
-| ![Кабина](docs/screenshots/cabin.jpg)) | ![Диспетчер](docs/screenshots/dispatcher.jpg) |
+| ![Кабина](docs/screenshots/cabin.jpg) | ![Диспетчер](docs/screenshots/dispatcher.jpg) |
 
 ---
 
