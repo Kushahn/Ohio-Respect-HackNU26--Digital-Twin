@@ -19,7 +19,7 @@ interface TrainRow {
 function categoryClass(cat: string | undefined) {
   if (cat === "Норма") return "status-normal";
   if (cat === "Внимание") return "status-warning";
-  if (cat === "Критично") return "status-critical";
+  if (cat === "Опасно") return "status-critical";
   return "";
 }
 

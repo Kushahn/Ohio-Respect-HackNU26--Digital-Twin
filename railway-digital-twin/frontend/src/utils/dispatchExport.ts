@@ -10,7 +10,7 @@ function healthCategoryToCsv(cat: string | undefined): string {
   if (!cat) return "";
   if (cat === "Норма") return "НОРМА";
   if (cat === "Внимание") return "ВНИМАНИЕ";
-  if (cat === "Критично") return "КРИТИЧНО";
+  if (cat === "Опасно") return "ОПАСНО";
   return cat.toUpperCase();
 }
 
@@ -37,7 +37,7 @@ export function dispatchSummaryToCsv(rows: readonly DispatchTrainRowInput[], wsC
     "Состав",
     "Статус связи",
     "Индекс здоровья",
-    "Статус (НОРМА/ВНИМАНИЕ/КРИТИЧНО)",
+    "Статус (НОРМА/ВНИМАНИЕ/ОПАСНО)",
     "Скорость",
     "Уровень топлива",
     "Время последнего обновления",

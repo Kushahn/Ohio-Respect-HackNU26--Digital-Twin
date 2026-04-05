@@ -83,9 +83,9 @@ class HealthEngine:
         
         # Category
         cat = "Норма"
-        if global_idx < 60 or "CRITICAL_BRAKE_FAILURE" in alerts:
-            cat = "Критично"
-        elif global_idx < 85 or len(alerts) > 0:
+        if global_idx < 50:
+            cat = "Опасно"
+        elif global_idx < 80:
             cat = "Внимание"
             
         # Top factors

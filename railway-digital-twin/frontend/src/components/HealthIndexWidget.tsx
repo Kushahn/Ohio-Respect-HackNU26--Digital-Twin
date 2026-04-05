@@ -14,7 +14,7 @@ export default function HealthIndexWidget({
   if (category === "Внимание") {
     statusClass = "status-warning";
     color = "var(--warning)";
-  } else if (category === "Критично") {
+  } else if (category === "Опасно") {
     statusClass = "status-critical";
     color = "var(--danger)";
   }
